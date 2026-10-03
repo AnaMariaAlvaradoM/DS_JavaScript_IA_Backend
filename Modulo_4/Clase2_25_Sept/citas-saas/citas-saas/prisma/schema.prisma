@@ -1,0 +1,215 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+//  Enums del dominio
+// ─────────────────────────────────────────────
+
+enum Rol {
+  DUENO
+  STAFF
+  CLIENTE
+}
+
+enum EstadoCita {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum EstadoSuscripcion {
+  ACTIVA
+  CANCELADA
+  VENCIDA
+}
+
+// ─────────────────────────────────────────────
+//  Identidad (reutilizado de M3: auth + roles)
+// ─────────────────────────────────────────────
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       Rol      @default(CLIENTE)
+  creadoEn  DateTime @default(now())
+
+  // Un usuario DUENO administra sus negocios (tenant)
+  negocios         Negocio[]
+  // Un usuario CLIENTE reserva citas
+  citasComoCliente Cita[]    @relation("CitasCliente")
+  // Perfil extendido (se construye en C2)
+  perfil           Perfil?
+
+  @@map("usuarios")
+}
+
+model Perfil {
+  id        Int     @id @default(autoincrement())
+  telefono  String?
+  bio       String?
+  avatarUrl String?
+  usuarioId Int     @unique
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@map("perfiles")
+}
+
+// ─────────────────────────────────────────────
+//  Tenant: el negocio de Don Pepe
+// ─────────────────────────────────────────────
+
+model Negocio {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  telefono    String?
+  direccion   String?
+  creadoEn    DateTime @default(now())
+
+  // Dueño (tenant owner)
+  duenoId Int
+  dueno   Usuario @relation(fields: [duenoId], references: [id])
+
+  // Relaciones del dominio
+  profesionales Profesional[]
+  servicios     Servicio[]
+  citas         Cita[]
+  suscripcion   Suscripcion?
+  configuracion Configuracion?
+
+  @@index([duenoId])
+  @@map("negocios")
+}
+
+// ─────────────────────────────────────────────
+//  Quien atiende (barberos de Don Pepe)
+// ─────────────────────────────────────────────
+
+model Profesional {
+  id           Int      @id @default(autoincrement())
+  nombre       String
+  especialidad String?
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  negocioId Int
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+
+  // M-a-N: un profesional ofrece varios servicios
+  servicios ServicioProfesional[]
+  citas     Cita[]
+
+  @@index([negocioId])
+  @@map("profesionales")
+}
+
+// ─────────────────────────────────────────────
+//  Lo que se ofrece (corte, barba, tinte...)
+// ─────────────────────────────────────────────
+
+model Servicio {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  duracionMin Int
+  precio      Decimal  @db.Decimal(10, 2)
+  activo      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+
+  negocioId Int
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+
+  // M-a-N: un servicio lo dan varios profesionales
+  profesionales ServicioProfesional[]
+  citas         Cita[]
+
+  @@index([negocioId])
+  @@map("servicios")
+}
+
+// Tabla intermedia explícita de la relación muchos-a-muchos
+model ServicioProfesional {
+  servicioId    Int
+  profesionalId Int
+  servicio      Servicio    @relation(fields: [servicioId], references: [id])
+  profesional   Profesional @relation(fields: [profesionalId], references: [id])
+
+  @@id([servicioId, profesionalId])
+  @@map("servicio_profesional")
+}
+
+// ─────────────────────────────────────────────
+//  El núcleo: la reserva sin cruces
+// ─────────────────────────────────────────────
+
+model Cita {
+  id       Int        @id @default(autoincrement())
+  fecha    DateTime
+  estado   EstadoCita @default(PENDIENTE)
+  notas    String?
+  creadoEn DateTime   @default(now())
+
+  negocioId     Int
+  negocio       Negocio     @relation(fields: [negocioId], references: [id])
+  clienteId     Int
+  cliente       Usuario     @relation("CitasCliente", fields: [clienteId], references: [id])
+  servicioId    Int
+  servicio      Servicio    @relation(fields: [servicioId], references: [id])
+  profesionalId Int
+  profesional   Profesional @relation(fields: [profesionalId], references: [id])
+
+  @@index([negocioId])
+  @@index([profesionalId, fecha])
+  @@map("citas")
+}
+
+// ─────────────────────────────────────────────
+//  Monetización (Stripe, se conecta en C3)
+// ─────────────────────────────────────────────
+
+model Suscripcion {
+  id                   Int               @id @default(autoincrement())
+  plan                 Plan              @default(FREE)
+  estado               EstadoSuscripcion @default(ACTIVA)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  vigenteHasta         DateTime?
+  creadoEn             DateTime          @default(now())
+
+  negocioId Int     @unique
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+
+  @@map("suscripciones")
+}
+
+// ─────────────────────────────────────────────
+//  Configuración del sistema por negocio (C2)
+// ─────────────────────────────────────────────
+
+model Configuracion {
+  id               Int      @id @default(autoincrement())
+  horaApertura     String   @default("09:00")
+  horaCierre       String   @default("18:00")
+  zonaHoraria      String   @default("America/Bogota")
+  duracionDefault  Int      @default(30)
+  actualizadoEn    DateTime @updatedAt
+
+  negocioId Int     @unique
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+
+  @@map("configuraciones")
+}
