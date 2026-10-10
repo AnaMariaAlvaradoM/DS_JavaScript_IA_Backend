@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgendaFácil — Panel de pruebas</title>
+<style>
+  :root{
+    --morado:#5418CC; --morado2:#6018F0; --oscuro:#3C1884;
+    --texto:#1A1A1A; --suave:#F5F3FB; --borde:#e5e0f2; --ok:#12813f; --err:#c0261e; --gris:#6b6b7b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--suave);color:var(--texto)}
+  header{background:var(--morado);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;font-weight:700}
+  header .sp{flex:1}
+  .api{display:flex;align-items:center;gap:6px;font-size:12px}
+  .api input{padding:5px 8px;border-radius:6px;border:1px solid #ffffff55;background:#ffffff22;color:#fff;width:190px}
+  .api input::placeholder{color:#ffffffaa}
+  .dot{width:9px;height:9px;border-radius:50%;background:#f0c000;display:inline-block}
+  .dot.on{background:#43e08a}.dot.off{background:#ff6b6b}
+  .wrap{max-width:1000px;margin:20px auto;padding:0 16px}
+  .card{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h2{margin:0 0 12px;font-size:16px;color:var(--oscuro)}
+  .card h3{margin:16px 0 8px;font-size:13px;color:var(--morado);text-transform:uppercase;letter-spacing:.5px}
+  label{display:block;font-size:12px;color:var(--gris);margin:8px 0 3px}
+  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--borde);border-radius:8px;font-size:14px;font-family:inherit}
+  .row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1;min-width:130px}
+  button{background:var(--morado);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;margin-top:10px}
+  button:hover{background:var(--morado2)}
+  button.sec{background:#fff;color:var(--morado);border:1px solid var(--morado)}
+  button.mini{padding:5px 9px;font-size:12px;margin:0}
+  button.danger{background:#fff;color:var(--err);border:1px solid var(--err);padding:5px 9px;font-size:12px;margin:0}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tabs button{background:#fff;color:var(--morado);border:1px solid var(--borde);margin:0}
+  .tabs button.active{background:var(--morado);color:#fff;border-color:var(--morado)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{text-align:left;padding:8px;border-bottom:1px solid var(--borde)}
+  th{color:var(--gris);font-weight:600;font-size:11px;text-transform:uppercase}
+  .pill{display:inline-block;background:var(--suave);border:1px solid var(--borde);border-radius:20px;padding:3px 10px;font-size:12px;margin:3px 3px 0 0}
+  .pill b{color:var(--morado)}
+  .msg{padding:10px 12px;border-radius:8px;font-size:13px;margin-top:10px;display:none}
+  .msg.ok{background:#e7f6ee;color:var(--ok);border:1px solid #b6e2c8;display:block}
+  .msg.err{background:#fdeceb;color:var(--err);border:1px solid #f4c4c0;display:block}
+  .hidden{display:none}
+  .muted{color:var(--gris);font-size:12px}
+  .who{font-size:13px}.who b{background:#ffffff33;padding:2px 8px;border-radius:20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  footer{text-align:center;color:var(--gris);font-size:11px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>✂️ AgendaFácil</h1>
+  <span id="who" class="who"></span>
+  <span class="sp"></span>
+  <span class="api">
+    <span id="dot" class="dot"></span> API
+    <input id="apiBase" value="http://localhost:3000" />
+  </span>
+  <button id="btnLogout" class="sec mini hidden" onclick="logout()">Salir</button>
+</header>
+
+<div class="wrap">
+
+  <!-- AUTENTICACIÓN -->
+  <div id="authView">
+    <div class="grid2">
+      <div class="card">
+        <h2>Crear cuenta</h2>
+        <label>Nombre</label><input id="rNombre" value="Don Pepe" />
+        <label>Email</label><input id="rEmail" value="pepe@barberia.com" />
+        <label>Contraseña (mín. 8)</label><input id="rPass" type="password" value="clave1234" />
+        <button onclick="registrar()">Registrarme</button>
+        <div id="rMsg" class="msg"></div>
+        <p class="muted">Todo el que se registra nace como CLIENTE. Al crear un negocio te vuelves DUEÑO.</p>
+      </div>
+      <div class="card">
+        <h2>Iniciar sesión</h2>
+        <label>Email</label><input id="lEmail" value="pepe@barberia.com" />
+        <label>Contraseña</label><input id="lPass" type="password" value="clave1234" />
+        <button onclick="login()">Entrar</button>
+        <div id="lMsg" class="msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appView" class="hidden">
+    <div class="tabs">
+      <button id="tab-negocio" class="active" onclick="showTab('negocio')">🏪 Mi negocio (dueño)</button>
+      <button id="tab-reservar" onclick="showTab('reservar')">📅 Reservar (cliente)</button>
+      <button id="tab-mias" onclick="showTab('mias')">🗓️ Mis citas</button>
+    </div>
+
+    <!-- PANEL DUEÑO -->
+    <div id="pane-negocio">
+      <div class="card">
+        <h2>Mis negocios</h2>
+        <div id="negociosLista" class="muted">Cargando…</div>
+        <h3>Crear un negocio nuevo</h3>
+        <div class="row">
+          <div><label>Nombre</label><input id="nNombre" value="Barbería Don Pepe" /></div>
+          <div><label>Teléfono</label><input id="nTel" value="3001234567" /></div>
+        </div>
+        <label>Descripción</label><input id="nDesc" value="Cortes clásicos y barba" />
+        <button onclick="crearNegocio()">Crear negocio</button>
+        <div id="nMsg" class="msg"></div>
+      </div>
+
+      <div id="negocioAdmin" class="hidden">
+        <div class="card">
+          <h2>Administrando: <span id="adminNombre" style="color:var(--morado)"></span></h2>
+
+          <h3>Horarios (configuración)</h3>
+          <div class="row">
+            <div><label>Apertura</label><input id="cAp" placeholder="09:00" /></div>
+            <div><label>Cierre</label><input id="cCi" placeholder="18:00" /></div>
+            <div><label>Duración por defecto (min)</label><input id="cDur" type="number" /></div>
+          </div>
+          <button class="sec" onclick="guardarConfig()">Guardar horarios</button>
+          <div id="cMsg" class="msg"></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Servicios</h2>
+            <div id="serviciosLista" class="muted">—</div>
+            <h3>Nuevo servicio</h3>
+            <label>Nombre</label><input id="sNombre" value="Corte clásico" />
+            <div class="row">
+              <div><label>Duración (min)</label><input id="sDur" type="number" value="30" /></div>
+              <div><label>Precio</label><input id="sPre" type="number" value="25000" /></div>
+            </div>
+            <button onclick="crearServicio()">Agregar servicio</button>
+            <div id="sMsg" class="msg"></div>
+          </div>
+
+          <div class="card">
+            <h2>Profesionales</h2>
+            <div id="profesLista" class="muted">—</div>
+            <h3>Nuevo profesional</h3>
+            <label>Nombre</label><input id="pNombre" value="Luis" />
+            <label>Especialidad</label><input id="pEsp" value="Fade" />
+            <button onclick="crearProfesional()">Agregar profesional</button>
+            <div id="pMsg" class="msg"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>¿Qué servicio hace cada profesional? (relación N:M)</h2>
+          <label>Profesional</label>
+          <select id="asgProf" onchange="cargarAsignaciones()"></select>
+          <div id="asgActual" class="muted" style="margin-top:10px">—</div>
+          <h3>Asignar un servicio</h3>
+          <div class="row">
+            <div><select id="asgServ"></select></div>
+            <div style="flex:0"><button class="mini" onclick="asignarServicio()">Asignar</button></div>
+          </div>
+          <div id="asgMsg" class="msg"></div>
+        </div>
+
+        <div class="card">
+          <h2>Suscripción</h2>
+          <div id="suscripcion" class="muted">—</div>
+          <button onclick="hazmePro()">Hazte PRO 💜</button>
+          <div id="suscMsg" class="msg"></div>
+          <p class="muted">Al pagar (tarjeta de prueba 4242 4242 4242 4242) y con <code>stripe listen</code> activo, el plan sube a PRO y se desbloquea la IA.</p>
+        </div>
+
+        <div class="card">
+          <h2>Agenda del negocio</h2>
+          <button class="sec mini" onclick="cargarAgenda()">Refrescar</button>
+          <div id="agenda">—</div>
+          <div id="iaMsg" class="msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL CLIENTE -->
+    <div id="pane-reservar" class="hidden">
+      <div class="card">
+        <h2>Reservar una cita</h2>
+        <p class="muted">Escribe el número del negocio donde quieres reservar (ej. 1) y carga su catálogo.</p>
+        <div class="row">
+          <div><label>N° de negocio</label><input id="cbNeg" type="number" value="1" /></div>
+          <div style="flex:0"><button class="mini" onclick="cargarCatalogo()">Cargar catálogo</button></div>
+        </div>
+        <div id="cbMsg" class="msg"></div>
+      </div>
+      <div id="catalogo" class="card hidden">
+        <h2 id="catNombre"></h2>
+        <label>Servicio</label>
+        <select id="cbServ" onchange="filtrarProfes()"></select>
+        <label>Profesional (solo los que ofrecen ese servicio)</label>
+        <select id="cbProf"></select>
+        <label>Fecha y hora</label>
+        <input id="cbFecha" type="datetime-local" />
+        <button onclick="reservar()">Reservar cita</button>
+        <div id="cbResMsg" class="msg"></div>
+      </div>
+    </div>
+
+    <!-- MIS CITAS -->
+    <div id="pane-mias" class="hidden">
+      <div class="card">
+        <h2>Mis citas (como cliente)</h2>
+        <button class="sec mini" onclick="cargarMias()">Refrescar</button>
+        <div id="mias">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>© 2026 Ana Alvarado · Educadora Tech &amp; Desarrolladora Full Stack · Panel de pruebas de AgendaFácil</footer>
+
+<script>
+let token = null, yo = null, negocioActivo = null, catalogoActual = null;
+
+const $ = id => document.getElementById(id);
+const apiBase = () => $('apiBase').value.replace(/\/$/, '');
+
+function msg(id, texto, ok){ const e=$(id); e.textContent=texto; e.className='msg '+(ok?'ok':'err'); }
+function limpiar(id){ const e=$(id); e.className='msg'; e.textContent=''; }
+
+async function api(path, {method='GET', body=null, auth=true}={}){
+  const headers = {'Content-Type':'application/json'};
+  if(auth && token) headers['Authorization'] = 'Bearer '+token;
+  let res;
+  try{
+    res = await fetch(apiBase()+path, {method, headers, body: body?JSON.stringify(body):null});
+  }catch(e){
+    $('dot').className='dot off';
+    throw {mensaje:'No se pudo conectar con el backend. ¿Está corriendo en '+apiBase()+'?'};
+  }
+  $('dot').className='dot on';
+  let data=null; try{ data=await res.json(); }catch(e){}
+  if(!res.ok){
+    const m = data && data.message ? (Array.isArray(data.message)?data.message.join(' · '):data.message) : ('Error '+res.status);
+    throw {mensaje:m, status:res.status};
+  }
+  return data;
+}
+
+// ---------- AUTH ----------
+async function registrar(){
+  limpiar('rMsg');
+  try{
+    const u = await api('/auth/register',{method:'POST',auth:false,body:{
+      nombre:$('rNombre').value, email:$('rEmail').value, password:$('rPass').value
+    }});
+    msg('rMsg','Cuenta creada ('+u.rol+'). Ahora inicia sesión.',true);
+    $('lEmail').value=$('rEmail').value; $('lPass').value=$('rPass').value;
+  }catch(e){ msg('rMsg',e.mensaje,false); }
+}
+
+async function login(){
+  limpiar('lMsg');
+  try{
+    const r = await api('/auth/login',{method:'POST',auth:false,body:{
+      email:$('lEmail').value, password:$('lPass').value
+    }});
+    token = r.access_token;
+    yo = await api('/perfil');
+    entrar();
+  }catch(e){ msg('lMsg',e.mensaje,false); }
+}
+
+function logout(){ token=null; yo=null; negocioActivo=null; $('appView').classList.add('hidden'); $('authView').classList.remove('hidden'); $('btnLogout').classList.add('hidden'); $('who').textContent=''; }
+
+function entrar(){
+  $('authView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  $('btnLogout').classList.remove('hidden');
+  $('who').innerHTML = 'Hola, <b>'+yo.nombre+'</b> · rol: '+yo.rol;
+  showTab('negocio');
+  cargarNegocios();
+}
+
+// ---------- TABS ----------
+function showTab(t){
+  ['negocio','reservar','mias'].forEach(x=>{
+    $('pane-'+x).classList.toggle('hidden', x!==t);
+    $('tab-'+x).classList.toggle('active', x===t);
+  });
+  if(t==='mias') cargarMias();
+}
+
+// ---------- DUEÑO ----------
+async function cargarNegocios(){
+  try{
+    const negs = await api('/negocios');
+    if(!negs.length){ $('negociosLista').textContent='Todavía no tienes negocios. Crea uno abajo.'; $('negocioAdmin').classList.add('hidden'); return; }
+    $('negociosLista').innerHTML = negs.map(n=>
+      '<span class="pill"><b>#'+n.id+'</b> '+n.nombre+' <button class="mini" onclick="administrar('+n.id+",'"+n.nombre.replace(/'/g,"")+"'"+')">Administrar</button></span>'
+    ).join('');
+    if(!negocioActivo) administrar(negs[0].id, negs[0].nombre);
+  }catch(e){ $('negociosLista').textContent=e.mensaje; }
+}
+
+async function crearNegocio(){
+  limpiar('nMsg');
+  try{
+    const n = await api('/negocios',{method:'POST',body:{
+      nombre:$('nNombre').value, descripcion:$('nDesc').value, telefono:$('nTel').value
+    }});
+    msg('nMsg','Negocio #'+n.id+' creado. ¡Ya eres DUEÑO! (vuelve a iniciar sesión para ver tu rol actualizado)',true);
+    yo = await api('/perfil'); $('who').innerHTML='Hola, <b>'+yo.nombre+'</b> · rol: '+yo.rol;
+    cargarNegocios();
+  }catch(e){ msg('nMsg',e.mensaje,false); }
+}
+
+async function administrar(id, nombre){
+  negocioActivo = id;
+  $('negocioAdmin').classList.remove('hidden');
+  $('adminNombre').textContent = nombre+' (#'+id+')';
+  try{
+    const c = await api('/negocios/'+id+'/configuracion');
+    $('cAp').value=c.horaApertura; $('cCi').value=c.horaCierre; $('cDur').value=c.duracionDefault;
+  }catch(e){}
+  cargarServicios(); cargarProfesionales(); cargarAgenda(); cargarSuscripcion();
+}
+
+async function cargarSuscripcion(){
+  try{
+    const s = await api('/negocios/'+negocioActivo+'/suscripcion');
+    const pro = s && s.plan==='PRO';
+    $('suscripcion').innerHTML = 'Plan actual: <b style="color:var(--morado)">'+(s?s.plan:'—')+'</b>'+(pro?' ✨ (IA desbloqueada)':'');
+  }catch(e){ $('suscripcion').textContent=e.mensaje; }
+}
+
+async function hazmePro(){
+  limpiar('suscMsg');
+  try{
+    const r = await api('/negocios/'+negocioActivo+'/suscripcion/checkout',{method:'POST'});
+    if(r && r.url){ msg('suscMsg','Abriendo la página de pago de Stripe…',true); window.open(r.url,'_blank'); }
+    else msg('suscMsg','No se recibió la URL de pago. ¿Configuraste STRIPE_SECRET_KEY?',false);
+  }catch(e){ msg('suscMsg',e.mensaje,false); }
+}
+
+async function generarMensajeIA(citaId){
+  limpiar('iaMsg');
+  try{
+    const r = await api('/negocios/'+negocioActivo+'/citas/'+citaId+'/mensaje-ia');
+    msg('iaMsg','('+r.modo+') '+r.mensaje,true);
+  }catch(e){
+    if(e.status===402) msg('iaMsg','Esta función es PRO. Usa "Hazte PRO" para desbloquearla.',false);
+    else msg('iaMsg',e.mensaje,false);
+  }
+}
+
+async function guardarConfig(){
+  limpiar('cMsg');
+  try{
+    await api('/negocios/'+negocioActivo+'/configuracion',{method:'PATCH',body:{
+      horaApertura:$('cAp').value, horaCierre:$('cCi').value, duracionDefault:Number($('cDur').value)
+    }});
+    msg('cMsg','Horarios guardados.',true);
+  }catch(e){ msg('cMsg',e.mensaje,false); }
+}
+
+async function cargarServicios(){
+  try{
+    const s = await api('/negocios/'+negocioActivo+'/servicios');
+    $('serviciosLista').innerHTML = s.length ? s.map(x=>'<span class="pill"><b>#'+x.id+'</b> '+x.nombre+' · '+x.duracionMin+'min · $'+x.precio+'</span>').join('') : '<span class="muted">Sin servicios aún.</span>';
+    $('asgServ').innerHTML = s.map(x=>'<option value="'+x.id+'">#'+x.id+' '+x.nombre+'</option>').join('');
+  }catch(e){ $('serviciosLista').textContent=e.mensaje; }
+}
+
+async function crearServicio(){
+  limpiar('sMsg');
+  try{
+    await api('/negocios/'+negocioActivo+'/servicios',{method:'POST',body:{
+      nombre:$('sNombre').value, duracionMin:Number($('sDur').value), precio:Number($('sPre').value)
+    }});
+    msg('sMsg','Servicio agregado.',true); cargarServicios();
+  }catch(e){ msg('sMsg',e.mensaje,false); }
+}
+
+async function cargarProfesionales(){
+  try{
+    const p = await api('/negocios/'+negocioActivo+'/profesionales');
+    $('profesLista').innerHTML = p.length ? p.map(x=>'<span class="pill"><b>#'+x.id+'</b> '+x.nombre+(x.especialidad?' · '+x.especialidad:'')+'</span>').join('') : '<span class="muted">Sin profesionales aún.</span>';
+    $('asgProf').innerHTML = p.map(x=>'<option value="'+x.id+'">#'+x.id+' '+x.nombre+'</option>').join('');
+    if(p.length) cargarAsignaciones();
+  }catch(e){ $('profesLista').textContent=e.mensaje; }
+}
+
+async function crearProfesional(){
+  limpiar('pMsg');
+  try{
+    await api('/negocios/'+negocioActivo+'/profesionales',{method:'POST',body:{
+      nombre:$('pNombre').value, especialidad:$('pEsp').value
+    }});
+    msg('pMsg','Profesional agregado.',true); cargarProfesionales();
+  }catch(e){ msg('pMsg',e.mensaje,false); }
+}
+
+async function cargarAsignaciones(){
+  const pid = $('asgProf').value; if(!pid) return;
+  try{
+    const s = await api('/profesionales/'+pid+'/servicios');
+    $('asgActual').innerHTML = s.length ? 'Ofrece: '+s.map(x=>'<span class="pill">'+x.nombre+' <button class="danger" onclick="quitarServicio('+pid+','+x.id+')">quitar</button></span>').join('') : '<span class="muted">Este profesional no ofrece ningún servicio aún.</span>';
+  }catch(e){ $('asgActual').textContent=e.mensaje; }
+}
+
+async function asignarServicio(){
+  limpiar('asgMsg');
+  try{
+    await api('/profesionales/'+$('asgProf').value+'/servicios',{method:'POST',body:{servicioId:Number($('asgServ').value)}});
+    msg('asgMsg','Servicio asignado.',true); cargarAsignaciones();
+  }catch(e){ msg('asgMsg',e.mensaje,false); }
+}
+
+async function quitarServicio(pid, sid){
+  try{ await api('/profesionales/'+pid+'/servicios/'+sid,{method:'DELETE'}); cargarAsignaciones(); }
+  catch(e){ msg('asgMsg',e.mensaje,false); }
+}
+
+async function cargarAgenda(){
+  try{
+    const c = await api('/negocios/'+negocioActivo+'/citas');
+    $('agenda').innerHTML = c.length ? tablaCitas(c, true) : '<p class="muted">No hay citas todavía.</p>';
+  }catch(e){ $('agenda').innerHTML='<p class="muted">'+e.mensaje+'</p>'; }
+}
+
+function tablaCitas(c, conCliente){
+  return '<table><tr><th>Fecha</th>'+(conCliente?'<th>Cliente</th>':'<th>Negocio</th>')+'<th>Servicio</th><th>Profesional</th><th>Estado</th>'+(conCliente?'<th>IA</th>':'')+'</tr>'+
+    c.map(x=>'<tr><td>'+fmt(x.fecha)+'</td><td>'+(conCliente?x.cliente.nombre:x.negocio.nombre)+'</td><td>'+x.servicio.nombre+'</td><td>'+x.profesional.nombre+'</td><td>'+x.estado+'</td>'+(conCliente?'<td><button class="mini" onclick="generarMensajeIA('+x.id+')">✨ Mensaje</button></td>':'')+'</tr>').join('')+'</table>';
+}
+function fmt(iso){ const d=new Date(iso); return d.toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'}); }
+
+// ---------- CLIENTE ----------
+async function cargarCatalogo(){
+  limpiar('cbMsg');
+  try{
+    const cat = await api('/negocios/'+$('cbNeg').value+'/catalogo',{auth:false});
+    catalogoActual = cat;
+    $('catalogo').classList.remove('hidden');
+    $('catNombre').textContent = cat.negocio.nombre+' — reservar';
+    $('cbServ').innerHTML = cat.servicios.map(s=>'<option value="'+s.id+'">'+s.nombre+' ('+s.duracionMin+'min · $'+s.precio+')</option>').join('');
+    filtrarProfes();
+    if(!cat.servicios.length) msg('cbMsg','Este negocio aún no tiene servicios.',false);
+  }catch(e){ $('catalogo').classList.add('hidden'); msg('cbMsg',e.mensaje,false); }
+}
+
+function filtrarProfes(){
+  if(!catalogoActual) return;
+  const sid = Number($('cbServ').value);
+  const aptos = catalogoActual.profesionales.filter(p=>p.servicioIds.includes(sid));
+  $('cbProf').innerHTML = aptos.length ? aptos.map(p=>'<option value="'+p.id+'">'+p.nombre+(p.especialidad?' · '+p.especialidad:'')+'</option>').join('') : '<option value="">— ningún profesional ofrece este servicio —</option>';
+}
+
+async function reservar(){
+  limpiar('cbResMsg');
+  const pid = $('cbProf').value;
+  if(!pid){ msg('cbResMsg','Elige un profesional que ofrezca el servicio.',false); return; }
+  const fechaLocal = $('cbFecha').value;
+  if(!fechaLocal){ msg('cbResMsg','Elige fecha y hora.',false); return; }
+  try{
+    const cita = await api('/negocios/'+$('cbNeg').value+'/citas',{method:'POST',body:{
+      servicioId:Number($('cbServ').value),
+      profesionalId:Number(pid),
+      fecha:new Date(fechaLocal).toISOString()
+    }});
+    msg('cbResMsg','¡Cita reservada! (#'+cita.id+', '+cita.estado+')',true);
+  }catch(e){ msg('cbResMsg',e.mensaje,false); }
+}
+
+// ---------- MIS CITAS ----------
+async function cargarMias(){
+  try{
+    const c = await api('/mis-citas');
+    $('mias').innerHTML = c.length ? tablaCitas(c, false) : '<p class="muted">Todavía no has reservado ninguna cita.</p>';
+  }catch(e){ $('mias').innerHTML='<p class="muted">'+e.mensaje+'</p>'; }
+}
+</script>
+</body>
+</html>

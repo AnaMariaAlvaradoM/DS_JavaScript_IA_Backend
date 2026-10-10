@@ -11,9 +11,13 @@ import { AsistenteIaModule } from './asistente-ia/asistente-ia.module';
 
 @Module({
   imports: [
+    // Infraestructura
     PrismaModule,
+    // Ya construido (M3, reusado)
     AuthModule,
+    // Funcional hoy (C1)
     NegociosModule,
+    // Esqueleto — se construyen en C2/C3
     ProfesionalesModule,
     ServiciosModule,
     CitasModule,
